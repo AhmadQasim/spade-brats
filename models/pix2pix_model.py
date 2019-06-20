@@ -34,20 +34,21 @@ class Pix2PixModel(torch.nn.Module):
                 self.criterionVGG = networks.VGGLoss(self.opt.gpu_ids)
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
-            self.metric = smp.utils.metrics.IoUMetric(eps=1.)
+            self.seg_dice_loss = smp.utils.losses.DiceLoss(activation=None)
             self.segmentation_model = \
-                torch.load('/home/qasima/venv_spade/SPADE/checkpoints/model_epochs_10_pure_resnet34')
+                torch.load('/home/qasima/venv_spade/SPADE/checkpoints/'
+                           'model_epochs_10_pure_resnet34_multimodal_DICE_1_pixel')
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        input_semantics, real_image = self.preprocess_input(data)
+        input_semantics, real_image, label = self.preprocess_input(data)
 
         if mode == 'generator':
             g_loss, generated = self.compute_generator_loss(
-                input_semantics, real_image)
+                input_semantics, real_image, label)
             return g_loss, generated
         elif mode == 'discriminator':
             d_loss = self.compute_discriminator_loss(
@@ -135,10 +136,10 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        return input_semantics, data['image']
+        return input_semantics, data['image'], label_map
 
     # doc: called in the forward function of the Pix2PixModel class
-    def compute_generator_loss(self, input_semantics, real_image):
+    def compute_generator_loss(self, input_semantics, real_image, label):
         G_losses = {}
 
         fake_image, KLD_loss = self.generate_fake(
@@ -175,14 +176,22 @@ class Pix2PixModel(torch.nn.Module):
 
         if not self.opt.no_vgg_loss:
             G_losses['VGG'] = self.criterionVGG(fake_image, real_image) \
-                * self.opt.lambda_vgg
+                              * self.opt.lambda_vgg
 
         # segmentation loss can be added as a new type of loss hereby, by segmenting the fake_image
         # the iou metric can be used for that purpose
         # a hyper parameter can be used for adjusting the weight
-        pr_mask = self.segmentation_model.predict(fake_image)
-        seg_loss = self.metric(input_semantics, pr_mask)
-        G_losses['Seg_Loss'] = seg_loss
+        # pr_mask = self.segmentation_model.predict(fake_image)
+        # doc: dropping the brain matter and background classes from input semantics so that it can be compared
+        # with the pr_mask using IoU
+        # masking according to CLASSES = ['bg', 't_2', 't_1', 'b', 't_3']
+        # mask = torch.zeros(input_semantics.size(), dtype=torch.uint8, device=torch.device('cuda'))
+        # mask = self.ByteTensor([0, 1, 1, 0, 1])
+        # tumor_mask = input_semantics[:, mask, :, :]
+        # pr_mask = pr_mask.squeeze().round()
+        # seg_loss = self.seg_dice_loss(label, pr_mask)
+        # doc: the weighting factor for segmentation loss is 1.5
+        # G_losses['Seg_Loss'] = seg_loss * 1.5
 
         return G_losses, fake_image
 

@@ -131,7 +131,7 @@ class Visualizer():
             if 'input_label' == key:
                 t = util.tensor2label(t, self.opt.label_nc + 2, tile=tile)
             else:
-                t = util.tensor2im(t, tile=tile)
+                t = util.tensor2im(t, tile=tile, normalize=False)
             visuals[key] = t
         return visuals
 
