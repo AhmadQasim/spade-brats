@@ -181,17 +181,16 @@ class Pix2PixModel(torch.nn.Module):
         # segmentation loss can be added as a new type of loss hereby, by segmenting the fake_image
         # the iou metric can be used for that purpose
         # a hyper parameter can be used for adjusting the weight
-        # pr_mask = self.segmentation_model.predict(fake_image)
+        # we have to clip the fake image and also scale it by 255.0, in order to predict using segmentator
+        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
+        pr_mask = self.segmentation_model.predict(fake_image_clamped_scaled)
         # doc: dropping the brain matter and background classes from input semantics so that it can be compared
         # with the pr_mask using IoU
         # masking according to CLASSES = ['bg', 't_2', 't_1', 'b', 't_3']
-        # mask = torch.zeros(input_semantics.size(), dtype=torch.uint8, device=torch.device('cuda'))
-        # mask = self.ByteTensor([0, 1, 1, 0, 1])
-        # tumor_mask = input_semantics[:, mask, :, :]
-        # pr_mask = pr_mask.squeeze().round()
-        # seg_loss = self.seg_dice_loss(label, pr_mask)
-        # doc: the weighting factor for segmentation loss is 1.5
-        # G_losses['Seg_Loss'] = seg_loss * 1.5
+        mask = self.ByteTensor([0, 1, 1, 0, 1])
+        tumor_mask = input_semantics[:, mask, :, :]
+        seg_loss = self.seg_dice_loss(tumor_mask, pr_mask)
+        G_losses['G_Seg_Loss'] = seg_loss
 
         return G_losses, fake_image
 
@@ -204,6 +203,9 @@ class Pix2PixModel(torch.nn.Module):
             fake_image.requires_grad_()
 
         # doc: call the discriminator's function to predict the fake and real images accordingly
+        # these predictions are going to be compared with tensor of 1s in the case of pred_real and
+        # tensors of 0s in case of pred_fake. The pred_fake and pred_real are just outputs of the discriminator for the
+        # real and fake images
         pred_fake, pred_real = self.discriminate(
             input_semantics, fake_image, real_image)
 
@@ -217,6 +219,20 @@ class Pix2PixModel(torch.nn.Module):
         # the target is real is set as True so the discriminator detects real images as real
         D_losses['D_real'] = self.criterionGAN(pred_real, True,
                                                for_discriminator=True)
+
+        # segmentation loss can be added as a new type of loss hereby, by segmenting the fake_image
+        # the iou metric can be used for that purpose
+        # a hyper parameter can be used for adjusting the weight
+        # we have to clip the fake image and also scale it by 255.0, in order to predict using segmentator
+        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
+        pr_mask = self.segmentation_model.predict(fake_image_clamped_scaled)
+        # doc: dropping the brain matter and background classes from input semantics so that it can be compared
+        # with the pr_mask using IoU
+        # masking according to CLASSES = ['bg', 't_2', 't_1', 'b', 't_3']
+        mask = self.ByteTensor([0, 1, 1, 0, 1])
+        tumor_mask = input_semantics[:, mask, :, :]
+        seg_loss = self.seg_dice_loss(tumor_mask, pr_mask)
+        D_losses['D_Seg_Loss'] = seg_loss
 
         return D_losses
 

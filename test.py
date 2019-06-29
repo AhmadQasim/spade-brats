@@ -12,7 +12,6 @@ from models.pix2pix_model import Pix2PixModel
 from util.visualizer import Visualizer
 from util import html
 from util import util
-import torchvision.transforms as transforms
 
 opt = TestOptions().parse()
 
@@ -45,6 +44,7 @@ for i, data_i in enumerate(dataloader):
                                    ('synthesized_image', generated[b])])
             visuals = visualizer.convert_visuals_to_numpy(visuals)
             for label, image_numpy in visuals.items():
+                print(image_numpy.shape)
                 util.save_image(image_numpy[:, :, 0], RESULTS_ROOT + 'train_t1ce_img_full/{}.png'.format(i),
                                 create_dir=True)
                 util.save_image(image_numpy[:, :, 1], RESULTS_ROOT + 'train_t1_img_full/{}.png'.format(i),
