@@ -115,6 +115,13 @@ Use `--results_dir` to specify the output directory. `--how_many` will specify t
 ## Options
 
 This code repo contains many options. Some options belong to only one specific model, and some options have different default values depending on other options. To address this, the `BaseOption` class dynamically loads and sets options depending on what model, network, and datasets are used. This is done by calling the static method `modify_commandline_options` of various classes. It takes in the`parser` of `argparse` package and modifies the list of options. For example, since COCO-stuff dataset contains a special label "unknown", when COCO-stuff dataset is used, it sets `--contain_dontcare_label` automatically at `data/coco_dataset.py`. You can take a look at `def gather_options()` of `options/base_options.py`, or `models/network/__init__.py` to get a sense of how this works.
+For usage with BRATS dataset, provide the following options:
+
+- `--dataset_mode` set to `brats`
+- `--label_dir` : path to the directory that contains label images
+- `--image_dir_t1ce` : path to the directory that contains t1ce modality
+- `--image_dir_t1` : path to the directory that contains t1 modality
+- `--image_dir_t2` : path to the directory that contains t2 modality
 
 ## VAE-Style Training with an Encoder For Style Control and Multi-Modal Outputs
 
