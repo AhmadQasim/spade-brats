@@ -148,6 +148,16 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
 
+        # doc: finding the feature maps for the fake and the real images
+        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
+        fake_feature_map = self.segmentation_model.forward(fake_image_clamped_scaled)
+        real_image_scaled = real_image * 255.0
+        real_feature_map = self.segmentation_model.forward(real_image_scaled)
+
+        # doc: concatenate the feature maps with the respective images
+        fake_image = torch.cat((fake_image, fake_feature_map), 1)
+        real_image = torch.cat((real_image, real_feature_map), 1)
+
         # doc: call the discriminator's function to predict the fake and real images accordingly
         # this step is taken in generator and discriminator steps both
         pred_fake, pred_real = self.discriminate(
@@ -178,20 +188,6 @@ class Pix2PixModel(torch.nn.Module):
             G_losses['VGG'] = self.criterionVGG(fake_image, real_image) \
                               * self.opt.lambda_vgg
 
-        # segmentation loss can be added as a new type of loss hereby, by segmenting the fake_image
-        # the iou metric can be used for that purpose
-        # a hyper parameter can be used for adjusting the weight
-        # we have to clip the fake image and also scale it by 255.0, in order to predict using segmentator
-        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
-        pr_mask = self.segmentation_model.predict(fake_image_clamped_scaled)
-        # doc: dropping the brain matter and background classes from input semantics so that it can be compared
-        # with the pr_mask using IoU
-        # masking according to CLASSES = ['bg', 't_2', 't_1', 'b', 't_3']
-        mask = self.ByteTensor([0, 1, 1, 0, 1])
-        tumor_mask = input_semantics[:, mask, :, :]
-        seg_loss = self.seg_dice_loss(tumor_mask, pr_mask)
-        G_losses['G_Seg_Loss'] = seg_loss
-
         return G_losses, fake_image
 
     # doc: called in the forward function of the Pix2PixModel class
@@ -201,6 +197,16 @@ class Pix2PixModel(torch.nn.Module):
             fake_image, _ = self.generate_fake(input_semantics, real_image)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
+
+        # doc: finding the feature maps for the fake and the real images
+        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
+        fake_feature_map = self.segmentation_model.forward(fake_image_clamped_scaled)
+        real_image_scaled = real_image * 255.0
+        real_feature_map = self.segmentation_model.forward(real_image_scaled)
+
+        # doc: concatenate the feature maps with the respective images
+        fake_image = torch.cat((fake_image, fake_feature_map), 1)
+        real_image = torch.cat((real_image, real_feature_map), 1)
 
         # doc: call the discriminator's function to predict the fake and real images accordingly
         # these predictions are going to be compared with tensor of 1s in the case of pred_real and
@@ -224,15 +230,13 @@ class Pix2PixModel(torch.nn.Module):
         # the iou metric can be used for that purpose
         # a hyper parameter can be used for adjusting the weight
         # we have to clip the fake image and also scale it by 255.0, in order to predict using segmentator
-        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
-        pr_mask = self.segmentation_model.predict(fake_image_clamped_scaled)
         # doc: dropping the brain matter and background classes from input semantics so that it can be compared
         # with the pr_mask using IoU
         # masking according to CLASSES = ['bg', 't_2', 't_1', 'b', 't_3']
-        mask = self.ByteTensor([0, 1, 1, 0, 1])
-        tumor_mask = input_semantics[:, mask, :, :]
-        seg_loss = self.seg_dice_loss(tumor_mask, pr_mask)
-        D_losses['D_Seg_Loss'] = seg_loss
+        # mask = self.ByteTensor([0, 1, 1, 0, 1])
+        # tumor_mask = input_semantics[:, mask, :, :]
+        # seg_loss = self.seg_dice_loss(tumor_mask, pr_mask)
+        # D_losses['D_Seg_Loss'] = seg_loss
 
         return D_losses
 
