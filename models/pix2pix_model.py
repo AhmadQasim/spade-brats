@@ -6,7 +6,6 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 import torch
 import models.networks as networks
 import util.util as util
-import segmentation_models_pytorch as smp
 
 
 class Pix2PixModel(torch.nn.Module):
@@ -34,10 +33,9 @@ class Pix2PixModel(torch.nn.Module):
                 self.criterionVGG = networks.VGGLoss(self.opt.gpu_ids)
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
-            self.seg_dice_loss = smp.utils.losses.DiceLoss(activation=None)
             self.segmentation_model = \
                 torch.load('/home/qasima/venv_spade/SPADE/checkpoints/'
-                           'model_epochs_10_pure_resnet34_multimodal_DICE_1_pixel')
+                           'model_epochs100_precent0_pure_vis')
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
@@ -160,6 +158,7 @@ class Pix2PixModel(torch.nn.Module):
 
         # doc: call the discriminator's function to predict the fake and real images accordingly
         # this step is taken in generator and discriminator steps both
+
         pred_fake, pred_real = self.discriminate(
             input_semantics, fake_image, real_image)
 

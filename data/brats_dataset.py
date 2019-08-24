@@ -27,11 +27,13 @@ class BratsDataset(Pix2pixDataset):
         parser.add_argument('--label_dir', type=str, required=True,
                             help='path to the directory that contains label images')
         parser.add_argument('--image_dir_t1ce', type=str, required=True,
-                            help='path to the directory that contains t1 modality')
-        parser.add_argument('--image_dir_t1', type=str, required=True,
                             help='path to the directory that contains t1ce modality')
+        parser.add_argument('--image_dir_flair', type=str, required=True,
+                            help='path to the directory that contains flair modality')
         parser.add_argument('--image_dir_t2', type=str, required=True,
                             help='path to the directory that contains t2 modality')
+        parser.add_argument('--image_dir_t1', type=str, required=True,
+                            help='path to the directory that contains t1 modality')
         parser.add_argument('--instance_dir', type=str, default='',
                             help='path to the directory that contains instance maps. Leave black if not exists')
         return parser
@@ -46,11 +48,14 @@ class BratsDataset(Pix2pixDataset):
         image_dir_t1ce = opt.image_dir_t1ce
         image_paths['t1ce'] = make_dataset(image_dir_t1ce, recursive=False, read_cache=True)
 
-        image_dir_t1 = opt.image_dir_t1
-        image_paths['t1'] = make_dataset(image_dir_t1, recursive=False, read_cache=True)
+        image_dir_flair = opt.image_dir_flair
+        image_paths['flair'] = make_dataset(image_dir_flair, recursive=False, read_cache=True)
 
         image_dir_t2 = opt.image_dir_t2
         image_paths['t2'] = make_dataset(image_dir_t2, recursive=False, read_cache=True)
+
+        image_dir_t1 = opt.image_dir_t1
+        image_paths['t1'] = make_dataset(image_dir_t1, recursive=False, read_cache=True)
 
         if len(opt.instance_dir) > 0:
             instance_dir = opt.instance_dir
@@ -58,7 +63,7 @@ class BratsDataset(Pix2pixDataset):
         else:
             instance_paths = []
 
-        assert len(label_paths) == ((len(image_paths['t1ce']) + len(image_paths['t1']) + len(image_paths['t2']))/3), \
-            "The #images in %s and %s do not match. Is there something wrong."
+        # assert len(label_paths) == ((len(image_paths['t1ce']) + len(image_paths['t1']) + len(image_paths['t2']))/3), \
+        #     "The #images in %s and %s do not match. Is there something wrong."
 
         return label_paths, image_paths, instance_paths

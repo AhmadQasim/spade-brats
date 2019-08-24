@@ -27,8 +27,9 @@ class Pix2pixDataset(BaseDataset):
         # modification: check if the dataset mode is brats
         if opt.dataset_mode == 'brats':
             util.natural_sort(image_paths['t1ce'])
-            util.natural_sort(image_paths['t1'])
+            util.natural_sort(image_paths['flair'])
             util.natural_sort(image_paths['t2'])
+            util.natural_sort(image_paths['t1'])
         else:
             util.natural_sort(image_paths)
         if not opt.no_instance:
@@ -37,8 +38,9 @@ class Pix2pixDataset(BaseDataset):
         label_paths = label_paths[:opt.max_dataset_size]
         if opt.dataset_mode == 'brats':
             image_paths['t1ce'] = image_paths['t1ce'][:opt.max_dataset_size]
-            image_paths['t1'] = image_paths['t1'][:opt.max_dataset_size]
+            image_paths['flair'] = image_paths['flair'][:opt.max_dataset_size]
             image_paths['t2'] = image_paths['t2'][:opt.max_dataset_size]
+            image_paths['t1'] = image_paths['t1'][:opt.max_dataset_size]
         else:
             image_paths = image_paths[:opt.max_dataset_size]
         instance_paths = instance_paths[:opt.max_dataset_size]
@@ -54,8 +56,9 @@ class Pix2pixDataset(BaseDataset):
         if opt.dataset_mode == 'brats':
             self.image_paths = dict()
             self.image_paths['t1ce'] = image_paths['t1ce']
-            self.image_paths['t1'] = image_paths['t1']
+            self.image_paths['flair'] = image_paths['flair']
             self.image_paths['t2'] = image_paths['t2']
+            self.image_paths['t1'] = image_paths['t1']
         else:
             self.image_paths = image_paths
         self.instance_paths = instance_paths
@@ -88,18 +91,24 @@ class Pix2pixDataset(BaseDataset):
 
         if self.opt.dataset_mode == 'brats':
             image_path = dict()
+            image_tensor = torch.ones(())
+            '''
             image_path['t1ce'] = self.image_paths['t1ce'][index]
-            image_path['t1'] = self.image_paths['t1'][index]
+            image_path['flair'] = self.image_paths['flair'][index]
             image_path['t2'] = self.image_paths['t2'][index]
+            image_path['t1'] = self.image_paths['t1'][index]
             image_t1ce = Image.open(image_path['t1ce'])
-            image_t1 = Image.open(image_path['t1'])
+            image_flair = Image.open(image_path['flair'])
             image_t2 = Image.open(image_path['t2'])
+            image_t1 = Image.open(image_path['t1'])
             transform_image = get_transform(self.opt, params)
             image_tensor_t1ce = transform_image(image_t1ce)
-            image_tensor_t1 = transform_image(image_t1)
+            image_tensor_flair = transform_image(image_flair)
             image_tensor_t2 = transform_image(image_t2)
-            # print(image_path['t1ce'], image_path['t1'], image_path['t2'])
-            image_tensor = torch.cat((image_tensor_t1ce, image_tensor_t1, image_tensor_t2), dim=0)
+            image_tensor_t1 = transform_image(image_t1)
+            image_tensor = torch.cat((image_tensor_t1ce, image_tensor_flair, image_tensor_t2, image_tensor_t1), dim=0)
+            '''
+
         else:
             # input image (real images)
             image_path = self.image_paths[index]
