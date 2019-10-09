@@ -52,6 +52,10 @@ class Pix2pixDataset(BaseDataset):
                     "quite different. Are you sure about the pairing? Please see data/pix2pix_dataset.py to see " \
                     "what is going on, and use --no_pairing_check to bypass this." % (path1, path2)
 
+        # check if the the number of scanner classes given is the same as initialized in base_dataset file
+        if opt.dataset_mode == "brats":
+            assert len(self.scanner_classes) == opt.scanner_nc, "The number of scanner classes mismatch"
+
         self.label_paths = label_paths
         if opt.dataset_mode == 'brats':
             self.image_paths = dict()
@@ -91,12 +95,17 @@ class Pix2pixDataset(BaseDataset):
 
         if self.opt.dataset_mode == 'brats':
             image_path = dict()
-            image_tensor = torch.ones(())
-            '''
+
             image_path['t1ce'] = self.image_paths['t1ce'][index]
             image_path['flair'] = self.image_paths['flair'][index]
             image_path['t2'] = self.image_paths['t2'][index]
             image_path['t1'] = self.image_paths['t1'][index]
+
+            for idx, scanner_class in enumerate(self.scanner_classes):
+                if scanner_class in image_path['flair']:
+                    scanner_class_idx = idx
+                    break
+
             image_t1ce = Image.open(image_path['t1ce'])
             image_flair = Image.open(image_path['flair'])
             image_t2 = Image.open(image_path['t2'])
@@ -107,7 +116,7 @@ class Pix2pixDataset(BaseDataset):
             image_tensor_t2 = transform_image(image_t2)
             image_tensor_t1 = transform_image(image_t1)
             image_tensor = torch.cat((image_tensor_t1ce, image_tensor_flair, image_tensor_t2, image_tensor_t1), dim=0)
-            '''
+
 
         else:
             # input image (real images)
@@ -135,6 +144,7 @@ class Pix2pixDataset(BaseDataset):
                 instance_tensor = transform_label(instance)
 
         input_dict = {'label': label_tensor,
+                      'scanner': scanner_class_idx,
                       'instance': instance_tensor,
                       'image': image_tensor,
                       'path': image_path,

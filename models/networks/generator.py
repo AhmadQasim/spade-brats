@@ -18,7 +18,8 @@ class SPADEGenerator(BaseNetwork):
         parser.set_defaults(norm_G='spectralspadesyncbatch3x3')
         parser.add_argument('--num_upsampling_layers',
                             choices=('normal', 'more', 'most'), default='normal',
-                            help="If 'more', adds upsampling layer between the two middle resnet blocks. If 'most', also add one more upsampling + resnet layer at the end of the generator")
+                            help="If 'more', adds upsampling layer between the two middle resnet blocks. If 'most', "
+                                 "also add one more upsampling + resnet layer at the end of the generator")
 
         return parser
 
@@ -31,13 +32,18 @@ class SPADEGenerator(BaseNetwork):
 
         if opt.use_vae:
             # In case of VAE, we will sample from random z vector
-            self.fc = nn.Linear(opt.z_dim, 16 * nf * self.sw * self.sh)
+            self.fc_0 = nn.Linear(opt.z_dim, 16 * nf * self.sw * self.sh)
         else:
             # Otherwise, we make the network deterministic by starting with
             # downsampled segmentation map instead of random z
-            self.fc = nn.Conv2d(self.opt.semantic_nc, 16 * nf, 3, padding=1)
+            self.fc_0 = nn.Conv2d(self.opt.semantic_nc, 16 * nf, 3, padding=1)
 
-        self.head_0 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
+        # embedding and fc layer for conditioning on the scanner class as well
+        self.embedding_0 = nn.Embedding(opt.scanner_nc, 1024)
+        self.fc_1 = nn.Linear(1024, 16 * nf * self.sh * self.sw)
+
+        # multiplying the in dimensions of the head SPADE block by 2 because of the scanner vector
+        self.head_0 = SPADEResnetBlock(16 * nf * 2, 16 * nf, opt)
 
         self.G_middle_0 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
         self.G_middle_1 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
@@ -52,9 +58,6 @@ class SPADEGenerator(BaseNetwork):
         if opt.num_upsampling_layers == 'most':
             self.up_4 = SPADEResnetBlock(1 * nf, nf // 2, opt)
             final_nc = nf // 2
-
-        # modification: print the output_nc to check output classes
-        print(opt.output_nc)
 
         self.conv_img = nn.Conv2d(final_nc, opt.output_nc, 3, padding=1)
 
@@ -76,7 +79,7 @@ class SPADEGenerator(BaseNetwork):
 
         return sw, sh
 
-    def forward(self, input, z=None):
+    def forward(self, input, scanner, z=None):
         seg = input
 
         if self.opt.use_vae:
@@ -84,12 +87,17 @@ class SPADEGenerator(BaseNetwork):
             if z is None:
                 z = torch.randn(input.size(0), self.opt.z_dim,
                                 dtype=torch.float32, device=input.get_device())
-            x = self.fc(z)
+            x = self.fc_0(z)
             x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
         else:
             # we downsample segmap and run convolution
             x = F.interpolate(seg, size=(self.sh, self.sw))
-            x = self.fc(x)
+            x = self.fc_0(x)
+
+        y = self.embedding_0(scanner)
+        y = self.fc_1(y)
+        y = y.view(-1, 1024, self.sh, self.sw)
+        x = torch.cat([x, y], dim=1)
 
         x = self.head_0(x, seg)
 

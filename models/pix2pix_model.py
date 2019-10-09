@@ -42,22 +42,22 @@ class Pix2PixModel(torch.nn.Module):
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        input_semantics, real_image, label = self.preprocess_input(data)
+        input_semantics, real_image, scanner = self.preprocess_input(data)
 
         if mode == 'generator':
             g_loss, generated = self.compute_generator_loss(
-                input_semantics, real_image, label)
+                input_semantics, real_image, scanner)
             return g_loss, generated
         elif mode == 'discriminator':
             d_loss = self.compute_discriminator_loss(
-                input_semantics, real_image)
+                input_semantics, real_image, scanner)
             return d_loss
         elif mode == 'encode_only':
             z, mu, logvar = self.encode_z(real_image)
             return mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(input_semantics, real_image)
+                fake_image, _ = self.generate_fake(input_semantics, real_image, scanner)
             return fake_image
         else:
             raise ValueError("|mode| is invalid")
@@ -119,6 +119,7 @@ class Pix2PixModel(torch.nn.Module):
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
             data['image'] = data['image'].cuda()
+            data['scanner'] = data['scanner'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -134,14 +135,14 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        return input_semantics, data['image'], label_map
+        return input_semantics, data['image'], data['scanner']
 
     # doc: called in the forward function of the Pix2PixModel class
-    def compute_generator_loss(self, input_semantics, real_image, label):
+    def compute_generator_loss(self, input_semantics, real_image, scanner):
         G_losses = {}
 
         fake_image, KLD_loss = self.generate_fake(
-            input_semantics, real_image, compute_kld_loss=self.opt.use_vae)
+            input_semantics, real_image, scanner, compute_kld_loss=self.opt.use_vae)
 
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
@@ -190,10 +191,10 @@ class Pix2PixModel(torch.nn.Module):
         return G_losses, fake_image
 
     # doc: called in the forward function of the Pix2PixModel class
-    def compute_discriminator_loss(self, input_semantics, real_image):
+    def compute_discriminator_loss(self, input_semantics, real_image, scanner):
         D_losses = {}
         with torch.no_grad():
-            fake_image, _ = self.generate_fake(input_semantics, real_image)
+            fake_image, _ = self.generate_fake(input_semantics, real_image, scanner)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
@@ -244,7 +245,7 @@ class Pix2PixModel(torch.nn.Module):
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, compute_kld_loss=False):
+    def generate_fake(self, input_semantics, real_image, scanner, compute_kld_loss=False):
         z = None
         KLD_loss = None
         if self.opt.use_vae:
@@ -252,7 +253,7 @@ class Pix2PixModel(torch.nn.Module):
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld
 
-        fake_image = self.netG(input_semantics, z=z)
+        fake_image = self.netG(input_semantics, scanner, z=z)
 
         assert (not compute_kld_loss) or self.opt.use_vae, \
             "You cannot compute KLD loss if opt.use_vae == False"

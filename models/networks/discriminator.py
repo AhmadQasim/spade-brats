@@ -54,6 +54,7 @@ class MultiscaleDiscriminator(BaseNetwork):
     def forward(self, input):
         result = []
         get_intermediate_features = not self.opt.no_ganFeat_loss
+
         # doc: all the discriminators which are the children of multiscale discriminator are provided the input
         for name, D in self.named_children():
             out = D(input)
@@ -102,7 +103,7 @@ class NLayerDiscriminator(BaseNetwork):
 
     def compute_D_input_nc(self, opt):
         input_nc = opt.label_nc + opt.output_nc
-        # doc: adding 3 more channels for the feature maps from the segmentator
+        # doc: adding 3 more channels for the feature maps from the segmentator i.e. 1 channel for each tumor class
         input_nc += 3
         if opt.contain_dontcare_label:
             input_nc += 1

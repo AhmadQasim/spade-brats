@@ -14,6 +14,19 @@ class BaseDataset(data.Dataset):
     def __init__(self):
         super(BaseDataset, self).__init__()
 
+        self.scanner_classes = [
+            '2013',
+            'CBICA',
+            'TCIA01',
+            'TCIA02',
+            'TCIA03',
+            'TCIA04',
+            'TCIA05',
+            'TCIA06',
+            'TCIA08',
+            'TMC'
+        ]
+
     @staticmethod
     def modify_commandline_options(parser, is_train):
         return parser
