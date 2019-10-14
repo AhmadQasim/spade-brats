@@ -102,9 +102,12 @@ class Pix2pixDataset(BaseDataset):
             image_path['t1'] = self.image_paths['t1'][index]
 
             for idx, scanner_class in enumerate(self.scanner_classes):
-                if scanner_class in image_path['flair']:
-                    scanner_class_idx = idx
-                    break
+                if self.opt.isTrain:
+                    if scanner_class in image_path['flair']:
+                        scanner_class_idx = idx
+                        break
+                else:
+                    scanner_class_idx = self.opt.scanner_class
 
             image_t1ce = Image.open(image_path['t1ce'])
             image_flair = Image.open(image_path['flair'])
