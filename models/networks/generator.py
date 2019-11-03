@@ -98,7 +98,6 @@ class SPADEGenerator(BaseNetwork):
         y = self.fc_1(y)
         y = y.view(-1, 1024, self.sh, self.sw)
         x = torch.cat([x, y], dim=1)
-
         x = self.head_0(x, seg)
 
         x = self.up(x)
