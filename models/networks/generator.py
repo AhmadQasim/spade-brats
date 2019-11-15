@@ -18,7 +18,8 @@ class SPADEGenerator(BaseNetwork):
         parser.set_defaults(norm_G='spectralspadesyncbatch3x3')
         parser.add_argument('--num_upsampling_layers',
                             choices=('normal', 'more', 'most'), default='normal',
-                            help="If 'more', adds upsampling layer between the two middle resnet blocks. If 'most', also add one more upsampling + resnet layer at the end of the generator")
+                            help="If 'more', adds upsampling layer between the two middle resnet blocks. "
+                                 "If 'most', also add one more upsampling + resnet layer at the end of the generator")
 
         return parser
 
@@ -54,9 +55,12 @@ class SPADEGenerator(BaseNetwork):
             final_nc = nf // 2
 
         # modification: print the output_nc to check output classes
-        print(opt.output_nc)
+        # print(opt.output_nc)
 
-        self.conv_img = nn.Conv2d(final_nc, opt.output_nc, 3, padding=1)
+        self.conv_img_t1ce = nn.Conv2d(final_nc, 1, 3, padding=1)
+        self.conv_img_flair = nn.Conv2d(final_nc, 1, 3, padding=1)
+        self.conv_img_t2 = nn.Conv2d(final_nc, 1, 3, padding=1)
+        self.conv_img_t1 = nn.Conv2d(final_nc, 1, 3, padding=1)
 
         self.up = nn.Upsample(scale_factor=2)
 
@@ -115,8 +119,17 @@ class SPADEGenerator(BaseNetwork):
             x = self.up(x)
             x = self.up_4(x, seg)
 
-        x = self.conv_img(F.leaky_relu(x, 2e-1))
-        x = F.tanh(x)
+        t1ce = self.conv_img_t1ce(F.leaky_relu(x, 2e-1))
+        flair = self.conv_img_flair(F.leaky_relu(x, 2e-1))
+        t2 = self.conv_img_t2(F.leaky_relu(x, 2e-1))
+        t1 = self.conv_img_t1(F.leaky_relu(x, 2e-1))
+
+        t1ce = F.tanh(t1ce)
+        flair = F.tanh(flair)
+        t2 = F.tanh(t2)
+        t1 = F.tanh(t1)
+
+        x = torch.cat([t1ce, flair, t2, t1], dim=1)
 
         return x
 

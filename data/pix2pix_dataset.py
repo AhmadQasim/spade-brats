@@ -91,8 +91,7 @@ class Pix2pixDataset(BaseDataset):
 
         if self.opt.dataset_mode == 'brats':
             image_path = dict()
-            image_tensor = torch.ones(())
-            '''
+
             image_path['t1ce'] = self.image_paths['t1ce'][index]
             image_path['flair'] = self.image_paths['flair'][index]
             image_path['t2'] = self.image_paths['t2'][index]
@@ -107,7 +106,7 @@ class Pix2pixDataset(BaseDataset):
             image_tensor_t2 = transform_image(image_t2)
             image_tensor_t1 = transform_image(image_t1)
             image_tensor = torch.cat((image_tensor_t1ce, image_tensor_flair, image_tensor_t2, image_tensor_t1), dim=0)
-            '''
+
 
         else:
             # input image (real images)
