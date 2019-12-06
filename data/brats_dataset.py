@@ -34,7 +34,7 @@ class BratsDataset(Pix2pixDataset):
                             help='path to the directory that contains t2 modality')
         parser.add_argument('--image_dir_t1', type=str, required=True,
                             help='path to the directory that contains t1 modality')
-        parser.add_argument('--scanner_nc', type=int, required=True, default=10,
+        parser.add_argument('--classes_nc', type=int, required=True, default=10,
                             help='the number of scanner classes')
         parser.add_argument('--instance_dir', type=str, default='',
                             help='path to the directory that contains instance maps. Leave black if not exists')
