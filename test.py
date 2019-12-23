@@ -39,7 +39,7 @@ for i, data_i in enumerate(dataloader):
     img_path = data_i['path']
     for b in range(generated.shape[0]):
         if opt.dataset_mode == 'brats':
-            RESULTS_ROOT = '/home/qasima/venv_spade/SPADE/results/' + opt.name + '/'
+            RESULTS_ROOT = '/home/qasima/venv_spade/SPADE/results/' + opt.name + '/fold_3/'
             visuals = OrderedDict([('input_label', data_i['label'][b]),
                                    ('synthesized_image', generated[b])])
             visuals = visualizer.convert_visuals_to_numpy(visuals)

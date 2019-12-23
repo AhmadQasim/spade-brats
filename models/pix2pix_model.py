@@ -34,8 +34,8 @@ class Pix2PixModel(torch.nn.Module):
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
             self.segmentation_model = \
-                torch.load('/home/qasima/venv_spade/SPADE/checkpoints/'
-                           'model_epochs100_precent0_pure_vis')
+                torch.load('/home/qasima/venv_spade/SPADE/checkpoints/fold_4/'
+                           'model_epochs100_percent0_pure_vis_4')
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
