@@ -126,8 +126,9 @@ class Pix2PixModel(torch.nn.Module):
         bs, _, h, w = label_map.size()
         nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
             else self.opt.label_nc
-        input_label = self.FloatTensor(bs, nc, h, w).zero_()
-        input_semantics = input_label.scatter_(1, label_map, 1.0)
+        # input_label = self.FloatTensor(bs, nc, h, w).zero_()
+        # input_semantics = input_label.scatter_(1, label_map, 1.0)
+        input_semantics = label_map.float()
 
         # concatenate instance map if it exists
         if not self.opt.no_instance:
@@ -147,11 +148,17 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
 
-        # doc: finding the feature maps for the fake and the real images
-        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
-        fake_feature_map = self.segmentation_model.forward(fake_image_clamped_scaled)
-        real_image_scaled = real_image * 255.0
-        real_feature_map = self.segmentation_model.forward(real_image_scaled)
+        if self.opt.dataset_mode == "brats":
+            # doc: finding the feature maps for the fake and the real images
+            fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
+            fake_feature_map = self.segmentation_model.forward(fake_image_clamped_scaled)
+            real_image_scaled = real_image * 255.0
+            real_feature_map = self.segmentation_model.forward(real_image_scaled)
+        else:
+            # doc: finding the feature maps for the fake and the real images
+            fake_image_clamped = torch.clamp(fake_image, 0, 1)
+            fake_feature_map = self.segmentation_model.forward(fake_image_clamped)
+            real_feature_map = self.segmentation_model.forward(real_image)
 
         # doc: concatenate the feature maps with the respective images
         fake_image = torch.cat((fake_image, fake_feature_map), 1)
@@ -199,10 +206,17 @@ class Pix2PixModel(torch.nn.Module):
             fake_image.requires_grad_()
 
         # doc: finding the feature maps for the fake and the real images
-        fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
-        fake_feature_map = self.segmentation_model.forward(fake_image_clamped_scaled)
-        real_image_scaled = real_image * 255.0
-        real_feature_map = self.segmentation_model.forward(real_image_scaled)
+        if self.opt.dataset_mode == "brats":
+            # doc: finding the feature maps for the fake and the real images
+            fake_image_clamped_scaled = torch.clamp(fake_image * 255.0, 0, 255)
+            fake_feature_map = self.segmentation_model.forward(fake_image_clamped_scaled)
+            real_image_scaled = real_image * 255.0
+            real_feature_map = self.segmentation_model.forward(real_image_scaled)
+        else:
+            # doc: finding the feature maps for the fake and the real images
+            fake_image_clamped = torch.clamp(fake_image, 0, 1)
+            fake_feature_map = self.segmentation_model.forward(fake_image_clamped)
+            real_feature_map = self.segmentation_model.forward(real_image)
 
         # doc: concatenate the feature maps with the respective images
         fake_image = torch.cat((fake_image, fake_feature_map), 1)

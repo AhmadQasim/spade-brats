@@ -6,9 +6,9 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 from data.base_dataset import BaseDataset, get_params, get_transform
 from PIL import Image
 import util.util as util
-import numpy as np
 import os
 import torch
+import json
 
 
 class Pix2pixDataset(BaseDataset):
@@ -54,7 +54,9 @@ class Pix2pixDataset(BaseDataset):
 
         # check if the the number of scanner classes given is the same as initialized in base_dataset file
         if opt.dataset_mode == "brats":
-            assert len(self.scanner_classes) == opt.scanner_nc, "The number of scanner classes mismatch"
+            assert len(self.scanner_classes) == opt.classes_nc, "The number of scanner classes mismatch"
+        elif opt.dataset_mode == "isic":
+            assert len(self.lesion_classes) == opt.classes_nc, "The number of lesion classes mismatch"
 
         self.label_paths = label_paths
         if opt.dataset_mode == 'brats':
@@ -69,6 +71,17 @@ class Pix2pixDataset(BaseDataset):
 
         size = len(self.label_paths)
         self.dataset_size = size
+
+        if opt.dataset_mode == 'isic':
+            meta_file = "/home/qasima/segmentation_models.pytorch/code/meta_data.json"
+
+            self.lesion_cls = dict()
+            with open(meta_file, 'r') as f:
+                meta_data = json.load(f)
+
+            for meta in meta_data:
+                diag = meta["meta"]["clinical"]["diagnosis"]
+                self.lesion_cls[meta["name"]] = diag
 
     def get_paths(self, opt):
         label_paths = []
@@ -89,8 +102,12 @@ class Pix2pixDataset(BaseDataset):
         label = label.convert('L')
         params = get_params(self.opt, label.size)
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
-        # modification: scale by 255.0 because the tensor is normalized
-        label_tensor = transform_label(label) * 255.0
+
+        if self.opt.dataset_mode == "brats":
+            # modification: scale by 255.0 because the tensor is normalized
+            label_tensor = transform_label(label) * 255.0
+        else:
+            label_tensor = transform_label(label)
         label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
 
         if self.opt.dataset_mode == 'brats':
@@ -104,10 +121,10 @@ class Pix2pixDataset(BaseDataset):
             for idx, scanner_class in enumerate(self.scanner_classes):
                 if self.opt.isTrain:
                     if scanner_class in image_path['flair']:
-                        scanner_class_idx = idx
+                        class_idx = idx
                         break
                 else:
-                    scanner_class_idx = self.opt.scanner_class
+                    class_idx = self.opt.scanner_class
 
             image_t1ce = Image.open(image_path['t1ce'])
             image_flair = Image.open(image_path['flair'])
@@ -120,19 +137,17 @@ class Pix2pixDataset(BaseDataset):
             image_tensor_t1 = transform_image(image_t1)
             image_tensor = torch.cat((image_tensor_t1ce, image_tensor_flair, image_tensor_t2, image_tensor_t1), dim=0)
 
-
         else:
-            # input image (real images)
             image_path = self.image_paths[index]
-            # modification: removing this assert as the label filename doesn't have to the same as the image name
-            # assert self.paths_match(label_path, image_path), \
-            #    "The label_path %s and image_path %s don't match." % \
-            #    (label_path, image_path)
             image = Image.open(image_path)
-            # modification: convert the image to grayscale rather then RGB
-            image = image.convert('L')
             transform_image = get_transform(self.opt, params)
             image_tensor = transform_image(image)
+
+        if self.opt.dataset_mode == "isic":
+            if self.opt.isTrain:
+                class_idx = self.lesion_classes.index(self.lesion_cls[image_path.split('/')[-1].split('.')[0]])
+            else:
+                class_idx = self.opt.scanner_class
 
         # if using instance maps
         if self.opt.no_instance:
@@ -147,7 +162,7 @@ class Pix2pixDataset(BaseDataset):
                 instance_tensor = transform_label(instance)
 
         input_dict = {'label': label_tensor,
-                      'scanner': scanner_class_idx,
+                      'scanner': class_idx,
                       'instance': instance_tensor,
                       'image': image_tensor,
                       'path': image_path,
