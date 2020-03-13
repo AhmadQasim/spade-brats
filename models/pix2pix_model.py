@@ -34,7 +34,7 @@ class Pix2PixModel(torch.nn.Module):
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
             self.segmentation_model = \
-                torch.load('/home/qasima/venv_spade/SPADE/checkpoints/'
+                torch.load('/home/qasima/venv_spade/SPADE/checkpoints/isic_fold_1/'
                            'model_epochs100_percent100_isic_256')
 
     # Entry point for all calls involving forward pass
